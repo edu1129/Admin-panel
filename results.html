@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Student Result - Digital ERP</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <!-- Libraries for PDF and Image Conversion -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+        
+        :root {
+            --primary-color: #003366; /* Deep Blue */
+            --secondary-color: #f0f2f5;
+            --accent-color: #D4AF37; /* Gold Accent */
+            --text-color: #333;
+            --border-color: #ddd;
+        }
+
+        body {
+            background-color: var(--secondary-color);
+            font-family: 'Poppins', sans-serif;
+            color: var(--text-color);
+        }
+        .container { max-width: 950px; }
+        .card { border: none; border-radius: 0.75rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .card-header { background-color: var(--primary-color); color: white; font-weight: 600; font-size: 1.2rem; }
+        
+        .instructions-box {
+            background-color: #e6f7ff;
+            border: 1px solid #91d5ff;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .instructions-box h5 {
+            color: var(--primary-color);
+            font-weight: 700;
+        }
+
+        #loadingIndicator { display: none; }
+        
+        /* --- Professional Marksheet/Certificate Style --- */
+        #marksheetContainer {
+            display: none;
+            background-color: #ffffff;
+            margin-top: 2rem;
+            position: relative;
+            /* Certificate Frame */
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            background: linear-gradient(145deg, #fdfdfd, #f7f7f7);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+        }
+        
+        .certificate-frame {
+            border: 8px solid var(--primary-color);
+            padding: 2rem 2.5rem;
+            position: relative;
+            background-color: #fff;
+        }
+        
+        /* Watermark Logo */
+        .certificate-frame::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 450px;
+            height: 450px;
+            background-image: url('https://digitalerp.shop/icon.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            transform: translate(-50%, -50%) rotate(-15deg);
+            opacity: 0.05; /* Kept it very subtle */
+            z-index: 0;
+        }
+        
+        .marksheet-content {
+            position: relative;
+            z-index: 1; /* Keep content above watermark */
+        }
+
+        .school-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 1.5rem;
+        }
+        .school-header img {
+             height: 80px;
+             margin-right: 20px;
+        }
+        .school-header div h2 {
+            margin: 0;
+            color: var(--primary-color);
+            font-weight: 700;
+            font-size: 2.2rem;
+        }
+        .school-header div p { margin: 0; color: #555; font-size: 1rem; }
+        
+        .marksheet-title {
+            text-align: center;
+            font-weight: 600;
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border: 1px solid var(--border-color);
+            padding: 0.75rem;
+            background-color: #f8f9fa;
+            margin-bottom: 2rem;
+        }
+        
+        .student-info-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+        }
+        .student-details { flex-grow: 1; }
+        .student-details p { margin-bottom: 0.7rem; font-size: 0.95rem; }
+        .student-details strong { min-width: 150px; display: inline-block; color: #444; font-weight: 600; }
+        .student-photo {
+            width: 125px;
+            height: 150px;
+            object-fit: cover;
+            border: 6px solid #fff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            margin-left: 2rem;
+        }
+        
+        .marks-table thead th {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 500;
+        }
+        .marks-table tbody tr:nth-child(even) { background-color: #f8f9fa; }
+        
+        .marks-summary { margin-top: 2rem; }
+        .summary-card {
+            background: #f8f9fa;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .summary-card h5 {
+            font-size: 1rem;
+            color: #555;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .summary-card p {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0;
+            color: var(--primary-color);
+        }
+        .result-pass { color: #198754 !important; }
+        .result-fail { color: #dc3545 !important; }
+        
+        .marksheet-footer {
+            margin-top: 4rem;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.95rem;
+            color: #333;
+        }
+        .signature-line {
+            border-top: 1px solid #555;
+            padding-top: 0.5rem;
+            margin-top: 3.5rem;
+            font-weight: 600;
+        }
+        .action-buttons { text-align: center; margin-top: 2rem; }
+        .action-buttons .btn { margin: 0 0.5rem; }
+        
+        .page-footer {
+            text-align: center;
+            margin-top: 3rem;
+            font-size: 0.9rem;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-4">
+        
+        <div class="instructions-box">
+            <h5><i class="fas fa-info-circle me-2"></i>How to Download Your Result</h5>
+            <p class="mb-1">Follow these simple steps to view and download your marksheet:</p>
+            <ol class="mb-2">
+                <li>Enter your <strong>School Code</strong>, <strong>Class</strong>, and <strong>Roll Number</strong> in the form below.</li>
+                <li>Click the "View Result" button to generate your marksheet.</li>
+                <li>Once the marksheet is displayed, click the "Download Marksheet (PDF)" button.</li>
+                <li>The system will first convert the marksheet into a high-quality image and then save it as a PDF file for you to download.</li>
+            </ol>
+            <small>This online result portal is proudly powered by <strong>Digital ERP</strong> software.</small>
+        </div>
+
+        <div class="card" id="searchCard">
+            <div class="card-header"><i class="fas fa-search me-2"></i>Find Your Result</div>
+            <div class="card-body p-4">
+                <form id="resultSearchForm">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label for="schoolCode" class="form-label">School Code</label>
+                            <input type="text" class="form-control" id="schoolCode" placeholder="Enter the code provided by your school" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="className" class="form-label">Class</label>
+                            <input type="text" class="form-control" id="className" placeholder="e.g., Class 10 - A" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="rollNumber" class="form-label">Roll Number</label>
+                            <input type="text" class="form-control" id="rollNumber" placeholder="Enter your roll number" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 mt-4"><i class="fas fa-paper-plane me-2"></i>View Result</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="loadingIndicator" class="text-center my-5">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-muted">Loading your result, please wait...</p>
+        </div>
+
+        <div id="alertArea" class="mt-3"></div>
+
+        <!-- Marksheet will be rendered here -->
+        <div id="marksheetContainer">
+             <!-- Content will be dynamically inserted by JavaScript -->
+        </div>
+        
+        <div class="action-buttons">
+            <button id="downloadPdfBtn" class="btn btn-success" style="display:none;"><i class="fas fa-download me-2"></i>Download Marksheet (PDF)</button>
+            <button id="searchAgainBtn" class="btn btn-secondary" style="display:none;"><i class="fas fa-search me-2"></i>Search Again</button>
+        </div>
+        
+        <footer class="page-footer">
+            <p>Powered by <strong style="color: var(--primary-color);">Digital ERP</strong> | <a href="/index.html" class="text-decoration-none">Back to Home Page</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // --- Element Selectors (No change in logic) ---
+        const searchForm = document.getElementById('resultSearchForm');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const alertArea = document.getElementById('alertArea');
+        const marksheetContainer = document.getElementById('marksheetContainer');
+        const searchCard = document.getElementById('searchCard');
+        const searchAgainBtn = document.getElementById('searchAgainBtn');
+        const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+
+        // --- Event Listeners (No change in logic) ---
+        searchForm.addEventListener('submit', handleSearch);
+        
+        searchAgainBtn.addEventListener('click', () => {
+            searchCard.style.display = 'block';
+            marksheetContainer.style.display = 'none';
+            searchAgainBtn.style.display = 'none';
+            downloadPdfBtn.style.display = 'none';
+            alertArea.innerHTML = '';
+            searchForm.reset();
+            document.querySelector('.instructions-box').style.display = 'block';
+        });
+
+        downloadPdfBtn.addEventListener('click', downloadMarksheetAsPDF);
+
+        // --- Core Data Fetching Logic (No change) ---
+        async function handleSearch(e) {
+            e.preventDefault();
+            loadingIndicator.style.display = 'block';
+            alertArea.innerHTML = '';
+            marksheetContainer.style.display = 'none';
+            searchCard.style.display = 'none';
+            document.querySelector('.instructions-box').style.display = 'none';
+            searchAgainBtn.style.display = 'none';
+            downloadPdfBtn.style.display = 'none';
+
+            const schoolCode = document.getElementById('schoolCode').value.trim();
+            const className = document.getElementById('className').value.trim();
+            const rollNumber = document.getElementById('rollNumber').value.trim();
+
+            try {
+                const response = await fetch('/api4', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'getStudentResult',
+                        payload: { schoolCode, className, rollNumber }
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'An unknown error occurred.');
+                }
+
+                renderMarksheet(result.schoolInfo, result.studentInfo);
+                marksheetContainer.style.display = 'block';
+                searchAgainBtn.style.display = 'inline-block';
+                downloadPdfBtn.style.display = 'inline-block';
+
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'danger');
+                searchCard.style.display = 'block';
+                document.querySelector('.instructions-box').style.display = 'block';
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+
+        // --- New Professional English Marksheet Renderer ---
+        function renderMarksheet(school, student) {
+            const marks = student.marks || {};
+            const subjects = Object.keys(marks);
+            let totalMarks = 0;
+            let obtainedMarks = 0;
+
+            const marksRows = subjects.map(subject => {
+                const subjectMarks = parseFloat(marks[subject]) || 0;
+                const maxMarks = 100; // Assuming max marks are 100 for each subject
+                totalMarks += maxMarks;
+                obtainedMarks += subjectMarks;
+                const grade = getGrade(subjectMarks);
+                return `
+                    <tr>
+                        <td>${subject}</td>
+                        <td class="text-center">${maxMarks}</td>
+                        <td class="text-center">${subjectMarks}</td>
+                        <td class="text-center fw-bold">${grade.grade}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            const percentage = totalMarks > 0 ? ((obtainedMarks / totalMarks) * 100).toFixed(2) : 0;
+            const finalResult = getFinalResult(percentage);
+            const issueDate = new Date().toLocaleDateString('en-GB'); // DD/MM/YYYY format
+
+            const marksheetHTML = `
+            <div class="certificate-frame">
+                <div class="marksheet-content">
+                    <header class="school-header">
+                        <img src="${school.logoUrl || 'https://digitalerp.shop/icon.png'}" alt="School Logo">
+                        <div>
+                            <h2>${school.name}</h2>
+                            <p>${school.address}</p>
+                        </div>
+                    </header>
+                    
+                    <h3 class="marksheet-title">${student.resultName || 'ANNUAL EXAMINATION REPORT CARD'}</h3>
+                    
+                    <section class="student-info-section">
+                        <div class="student-details">
+                            <p><strong>Student's Name:</strong> ${student.name}</p>
+                            <p><strong>Father's Name:</strong> ${student.fatherName}</p>
+                            <p><strong>Class:</strong> ${student.className}</p>
+                            <p><strong>Roll Number:</strong> ${student.rollNumber}</p>
+                            <p><strong>Registration Date:</strong> ${new Date(student.registrationDate).toLocaleDateString('en-GB')}</p>
+                        </div>
+                        <img src="${student.photoUrl || 'https://via.placeholder.com/125x150?text=Photo'}" alt="Student Photo" class="student-photo">
+                    </section>
+                    
+                    <section class="marks-table-section">
+                         <table class="table table-bordered marks-table">
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th class="text-center">Maximum Marks</th>
+                                    <th class="text-center">Marks Obtained</th>
+                                    <th class="text-center">Grade</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${marksRows}
+                            </tbody>
+                        </table>
+                    </section>
+
+                    <section class="marks-summary">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="summary-card">
+                                    <h5>TOTAL MARKS</h5>
+                                    <p>${obtainedMarks} / ${totalMarks}</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="summary-card">
+                                    <h5>PERCENTAGE</h5>
+                                    <p>${percentage}%</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                               <div class="summary-card">
+                                    <h5>FINAL RESULT</h5>
+                                    <p class="fw-bold ${finalResult.class}">${finalResult.text}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <footer class="marksheet-footer">
+                        <div><strong>Date of Issue:</strong> ${issueDate}</div>
+                        <div><strong class="signature-line">Class Teacher's Signature</strong></div>
+                        <div><strong class="signature-line">Principal's Signature</strong></div>
+                    </footer>
+                </div>
+            </div>
+            `;
+            marksheetContainer.innerHTML = marksheetHTML;
+        }
+
+        // --- PDF Download Function with Branding ---
+        async function downloadMarksheetAsPDF() {
+            const downloadButton = document.getElementById('downloadPdfBtn');
+            const originalButtonText = downloadButton.innerHTML;
+            downloadButton.disabled = true;
+            downloadButton.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Downloading...`;
+
+            const marksheetElement = document.getElementById('marksheetContainer');
+            
+            try {
+                const canvas = await html2canvas(marksheetElement, {
+                    scale: 2.5, // Increase scale for better quality
+                    useCORS: true 
+                });
+                const imgData = canvas.toDataURL('image/png');
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const imgProps = pdf.getImageProperties(imgData);
+                const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                
+                let height = imgHeight;
+                let position = 0;
+                
+                // Add image to PDF. If it's too long, it will be clipped, which is fine for most A4-sized content.
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, height);
+
+                // Add footer with branding
+                pdf.setFontSize(8);
+                pdf.setTextColor(150);
+                pdf.text(
+                    'This marksheet was generated by Digital ERP software.',
+                    pdfWidth / 2,
+                    pdfHeight - 7,
+                    { align: 'center' }
+                );
+
+                pdf.save(`marksheet-${document.getElementById('rollNumber').value.trim()}.pdf`);
+
+            } catch (error) {
+                console.error('Error creating PDF:', error);
+                showAlert('Failed to download PDF. Please try again.', 'danger');
+            } finally {
+                downloadButton.disabled = false;
+                downloadButton.innerHTML = originalButtonText;
+            }
+        }
+
+        // --- Helper Functions (Translated/Updated) ---
+        function getGrade(marks) {
+            if (marks >= 90) return { grade: 'A1' };
+            if (marks >= 80) return { grade: 'A2' };
+            if (marks >= 70) return { grade: 'B1' };
+            if (marks >= 60) return { grade: 'B2' };
+            if (marks >= 50) return { grade: 'C1' };
+            if (marks >= 40) return { grade: 'C2' };
+            if (marks >= 33) return { grade: 'D' };
+            return { grade: 'E (FAIL)' };
+        }
+
+        function getFinalResult(percentage) {
+            if (percentage >= 33) {
+                return { text: 'PASS', class: 'result-pass' };
+            } else {
+                return { text: 'FAIL', class: 'result-fail' };
+            }
+        }
+
+        function showAlert(message, type = 'info') {
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = [
+                `<div class="alert alert-${type} alert-dismissible fade show" role="alert">`,
+                `   <div>${message}</div>`,
+                '   <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>',
+                '</div>'
+            ].join('');
+            alertArea.innerHTML = '';
+            alertArea.append(wrapper);
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
